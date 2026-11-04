@@ -27,7 +27,6 @@ import {
     type EditPinsEntry,
     type PinSource,
     trackBrowseListOpened,
-    trackEditPinsClosed,
     trackEditPinsOpened,
     trackPinTileSheetOpened,
     trackViewOpenedInWeb,
@@ -48,7 +47,6 @@ import { useSnapshot } from '../viewsCache'
 import { viewWebUrl } from '../webLinks'
 import { BROWSE_ENTRIES, type BrowseEntry, BrowseEntryRow, browseEntryLabel, browseEntryPin } from './BrowseEntryRow'
 import { ChooseTileSheet, type ChooseTileTarget } from './ChooseTileSheet'
-import { EditPinsList } from './EditPinsList'
 import { EmptyPins } from './EmptyPins'
 import { PinCard } from './PinCard'
 import { PinHint } from './PinHint'
@@ -148,6 +146,7 @@ function ViewsReauth({ access }: { access: ViewsAccess }): ReactElement {
 const noop = (): void => undefined
 
 function ViewsBody(): ReactElement {
+    const focused = useIsFocused()
     const colors = useColors()
     const styles = useStyles()
     const router = useRouter()
@@ -234,24 +233,29 @@ function ViewsBody(): ReactElement {
     )
 
     const pins = list.pins.data ?? EMPTY_PINS
-    const edit = useEditPinsSession(pins.length)
-    const { editing, start: startEditing } = edit
+    const startEditing = useCallback(
+        (from: EditPinsEntry): void => {
+            trackEditPinsOpened({ from, pinCount: pins.length })
+            router.push('/views/edit-pins')
+        },
+        [pins.length, router]
+    )
     const recent = list.recent.data ?? EMPTY_RECENT
-    const search = useViewsSearch(editing ? '' : text, pins, recent)
-    const anchorContent = useRef({ editing, text, searching: search.active })
+    const search = useViewsSearch(text, pins, recent)
+    const anchorContent = useRef({ text, searching: search.active })
     useLayoutEffect(() => {
         const previous = anchorContent.current
-        if (previous.editing !== editing || previous.text !== text || previous.searching !== search.active) {
+        if (previous.text !== text || previous.searching !== search.active) {
             cancelAnchorRestore()
         }
-        anchorContent.current = { editing, text, searching: search.active }
-    }, [editing, text, search.active, cancelAnchorRestore])
+        anchorContent.current = { text, searching: search.active }
+    }, [text, search.active, cancelAnchorRestore])
     const pinnedKeys = list.pinnedKeys
     const hint = usePinHint({
         pins: list.pins.data,
         automatic: list.automaticDisplays,
         explicit: list.displayPrefs,
-        enabled: !editing && !search.active,
+        enabled: focused && !search.active,
     })
     const hintTargetId = hint.target?.shortcutId ?? null
     const { dismiss: dismissHint } = hint
@@ -412,15 +416,6 @@ function ViewsBody(): ReactElement {
         })
         return { recent: handlers('recent'), search: handlers('search') }
     }, [openView])
-
-    // Edit pins has nothing left to edit once the last pin goes, so the list comes back with its empty state.
-    const noPins = list.pins.data !== undefined && pins.length === 0
-    const { finish: finishEditing } = edit
-    useEffect(() => {
-        if (noPins) {
-            finishEditing('no_pins')
-        }
-    }, [noPins, finishEditing])
 
     const sections = useMemo<ListSection[]>(() => {
         let index = 0
@@ -803,8 +798,8 @@ function ViewsBody(): ReactElement {
     useTabHeader('views', {
         refreshing: !loading && refresh.busy,
         hint: loading ? null : refresh.hint,
-        status: editing ? 'Changes save as you go' : status,
-        editing: editing ? { title: 'Edit pins', onDone: () => edit.finish('done') } : null,
+        status,
+        editing: null,
         editPins: {
             disabled: pins.length === 0,
             onPress: () => {
@@ -817,7 +812,7 @@ function ViewsBody(): ReactElement {
     const menuPin = menu?.kind === 'pin' ? pins.find((pin) => pin.shortcutId === menu.shortcutId) : undefined
     const menuPinIndex = menuPin ? pins.indexOf(menuPin) : -1
 
-    const listFailed = !editing && !loading && list.pins.isError && !list.pins.data
+    const listFailed = !loading && list.pins.isError && !list.pins.data
     useEffect(() => {
         if (listFailed) {
             trackViewsErrorShown({ screen: 'list', kind: 'failed' })
@@ -825,33 +820,7 @@ function ViewsBody(): ReactElement {
     }, [listFailed])
 
     let body: ReactElement
-    if (editing) {
-        body = (
-            <EditPinsList
-                pins={pins}
-                contentTop={contentTop}
-                contentBottom={contentBottom}
-                onReorder={(shortcutIds) => {
-                    edit.noteChange()
-                    actions.reorder(shortcutIds)
-                }}
-                onMove={(pin, direction) => {
-                    edit.noteChange()
-                    actions.move(pin, direction)
-                }}
-                onMode={(pin, mode) => {
-                    if (mode !== pin.display.mode) {
-                        edit.noteChange()
-                    }
-                    showAs(pin, mode)
-                }}
-                onRemove={(pin) => {
-                    edit.noteChange()
-                    flows.unpin(pin, 'row_menu')
-                }}
-            />
-        )
-    } else if (loading) {
+    if (loading) {
         body = (
             <View style={[styles.content, { paddingTop: contentTop }]}>
                 <ViewsSkeleton />
@@ -1002,47 +971,6 @@ function ViewsBody(): ReactElement {
             />
         </View>
     )
-}
-
-interface EditPinsSession {
-    editing: boolean
-    start: (from: EditPinsEntry) => void
-    finish: (reason: 'done' | 'no_pins') => void
-    noteChange: () => void
-}
-
-function useEditPinsSession(pinCount: number): EditPinsSession {
-    const [editing, setEditing] = useState(false)
-    const session = useRef<{ startedAt: number; changes: number } | null>(null)
-    const count = useRef(pinCount)
-    count.current = pinCount
-    const start = useCallback((from: EditPinsEntry) => {
-        if (session.current) {
-            return
-        }
-        session.current = { startedAt: Date.now(), changes: 0 }
-        setEditing(true)
-        trackEditPinsOpened({ from, pinCount: count.current })
-    }, [])
-    const finish = useCallback((reason: 'done' | 'no_pins') => {
-        const current = session.current
-        if (!current) {
-            return
-        }
-        session.current = null
-        setEditing(false)
-        trackEditPinsClosed({
-            reason,
-            changes: current.changes,
-            durationSeconds: Math.round((Date.now() - current.startedAt) / 1000),
-        })
-    }, [])
-    const noteChange = useCallback(() => {
-        if (session.current) {
-            session.current.changes++
-        }
-    }, [])
-    return { editing, start, finish, noteChange }
 }
 
 interface PinMenuForProps {

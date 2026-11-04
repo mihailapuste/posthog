@@ -106,6 +106,20 @@ export default function RootLayout(): ReactElement {
                                         }}
                                     >
                                         <Stack.Screen
+                                            name="views/edit-pins"
+                                            dangerouslySingular={(): string => 'edit-pins'}
+                                            options={{
+                                                presentation: 'formSheet',
+                                                headerShown: true,
+                                                headerTransparent: true,
+                                                headerShadowVisible: false,
+                                                sheetAllowedDetents: [1],
+                                                sheetGrabberVisible: true,
+                                                sheetExpandsWhenScrolledToEdge: true,
+                                                scrollEdgeEffects: { top: 'soft' },
+                                            }}
+                                        />
+                                        <Stack.Screen
                                             name="chat"
                                             dangerouslySingular={(): string => 'chat'}
                                             options={{
