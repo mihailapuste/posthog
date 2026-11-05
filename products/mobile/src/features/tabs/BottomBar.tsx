@@ -11,11 +11,14 @@ import { SpacesIcon } from '@/ui/icons/SpacesIcon'
 import type { IconProps } from '@/ui/icons/types'
 import { ViewsIcon } from '@/ui/icons/ViewsIcon'
 import { Pressable44 } from '@/ui/Pressable44'
+import { ToolbarButton } from '@/ui/ToolbarButton'
+import { liquidGlassAvailable, ToolbarSurface } from '@/ui/ToolbarSurface'
 import { createStyles, useColors, useTheme } from '@/ui/theme'
 import { iconSizes, layout, radii, type } from '@/ui/tokens'
 import { useAppLayout } from '@/ui/useAppLayout'
 import { bottomOffset, useScreenInsets } from '@/ui/useScreenInsets'
 
+import { NativeTabStrip } from './NativeTabStrip'
 import type { NavPin } from './navPinStore'
 
 export type BottomBarSlot = 'home' | 'chats' | 'views' | NavPin
@@ -120,6 +123,7 @@ export function BottomBar({
     const styles = useStyles()
     const insets = useScreenInsets()
     const { rail, railSide, contentWidth } = useAppLayout()
+    const nativeTabs = liquidGlassAvailable && !rail
     return (
         <View
             style={[
@@ -145,74 +149,90 @@ export function BottomBar({
                     <FadeEdge direction="up" solid={0.6} opacity={layout.chromeTint} />
                 </>
             )}
-            <View
-                style={[
-                    styles.nav,
-                    !rail && styles.bottomNav,
-                    shadows.floatingBar,
-                    rail && {
-                        height: (3 + pins.length) * 52 + 12,
-                        width: 64,
-                        flexDirection: 'column',
-                        paddingVertical: 8,
-                        gap: 6,
-                    },
-                ]}
-                accessibilityRole="tablist"
-            >
-                {selected === 'home' ? (
-                    <SelectedSlot onPress={onHome} label="Home" Icon={HomeIcon} testID="inbox-nav-home" />
-                ) : (
-                    <NavSlot label="Home" Icon={HomeIcon} onPress={onHome} testID="inbox-nav-home" />
-                )}
-                {/* The testID keeps its old name because the Argent flows select this slot by it. */}
-                {selected === 'chats' ? (
-                    <SelectedSlot onPress={onChats} label="Chats" Icon={SpacesIcon} testID="inbox-nav-chat" />
-                ) : (
-                    <NavSlot label="Chats" Icon={SpacesIcon} onPress={onChats} testID="inbox-nav-chat" />
-                )}
-                {selected === 'views' ? (
-                    <SelectedSlot onPress={onViews} label="Views" Icon={ViewsIcon} testID="inbox-nav-views" />
-                ) : (
-                    <NavSlot label="Views" Icon={ViewsIcon} onPress={onViews} testID="inbox-nav-views" />
-                )}
-                {pins.map((pin) => {
-                    const { label, Icon } = PIN_SLOTS[pin]
-                    return selected === pin ? (
-                        <SelectedSlot
-                            onPress={() => onPin(pin)}
-                            key={pin}
-                            label={label}
-                            Icon={Icon}
-                            testID={`nav-pin-${pin}`}
-                        />
+            {nativeTabs ? (
+                <NativeTabStrip
+                    selected={selected}
+                    pins={pins}
+                    onHome={onHome}
+                    onChats={onChats}
+                    onViews={onViews}
+                    onPin={onPin}
+                />
+            ) : (
+                <ToolbarSurface
+                    style={[
+                        styles.nav,
+                        !rail && styles.bottomNav,
+                        shadows.floatingBar,
+                        rail && {
+                            height: (3 + pins.length) * 52 + 12,
+                            width: 64,
+                            flexDirection: 'column',
+                            paddingVertical: 8,
+                            gap: 6,
+                        },
+                    ]}
+                    accessibilityRole="tablist"
+                >
+                    {selected === 'home' ? (
+                        <SelectedSlot onPress={onHome} label="Home" Icon={HomeIcon} testID="inbox-nav-home" />
                     ) : (
-                        <NavSlot
-                            key={pin}
-                            label={label}
-                            Icon={Icon}
-                            onPress={() => onPin(pin)}
-                            testID={`nav-pin-${pin}`}
-                        />
-                    )
-                })}
-            </View>
+                        <NavSlot label="Home" Icon={HomeIcon} onPress={onHome} testID="inbox-nav-home" />
+                    )}
+                    {/* The testID keeps its old name because the Argent flows select this slot by it. */}
+                    {selected === 'chats' ? (
+                        <SelectedSlot onPress={onChats} label="Chats" Icon={SpacesIcon} testID="inbox-nav-chat" />
+                    ) : (
+                        <NavSlot label="Chats" Icon={SpacesIcon} onPress={onChats} testID="inbox-nav-chat" />
+                    )}
+                    {selected === 'views' ? (
+                        <SelectedSlot onPress={onViews} label="Views" Icon={ViewsIcon} testID="inbox-nav-views" />
+                    ) : (
+                        <NavSlot label="Views" Icon={ViewsIcon} onPress={onViews} testID="inbox-nav-views" />
+                    )}
+                    {pins.map((pin) => {
+                        const { label, Icon } = PIN_SLOTS[pin]
+                        return selected === pin ? (
+                            <SelectedSlot
+                                onPress={() => onPin(pin)}
+                                key={pin}
+                                label={label}
+                                Icon={Icon}
+                                testID={`nav-pin-${pin}`}
+                            />
+                        ) : (
+                            <NavSlot
+                                key={pin}
+                                label={label}
+                                Icon={Icon}
+                                onPress={() => onPin(pin)}
+                                testID={`nav-pin-${pin}`}
+                            />
+                        )
+                    })}
+                </ToolbarSurface>
+            )}
             {onNewChat ? (
-                <Pressable44
+                <ToolbarButton
+                    tintColor="#000000"
                     onPress={onNewChat}
                     accessibilityLabel="Chat"
                     pressedBackground={colors.inkHover}
                     style={[
                         styles.chat,
                         shadows.fab,
+                        nativeTabs && styles.nativeChat,
                         rail && { width: 56, paddingLeft: 0, paddingRight: 0, justifyContent: 'center' },
                     ]}
                     haptic="selection"
                     testID="inbox-chat"
                 >
-                    <ComposeIcon size={iconSizes.navigation} color={colors.onInk} />
-                    {rail ? null : <Text style={styles.chatText}>Chat</Text>}
-                </Pressable44>
+                    <ComposeIcon
+                        size={iconSizes.navigation}
+                        color={liquidGlassAvailable ? colors.white : colors.onInk}
+                    />
+                    {rail || nativeTabs ? null : <Text style={styles.chatText}>Chat</Text>}
+                </ToolbarButton>
             ) : null}
         </View>
     )
@@ -277,8 +297,9 @@ const useStyles = createStyles(({ colors }) => ({
         borderWidth: 1,
         borderColor: colors.ink,
     },
+    nativeChat: { width: 64, height: 64, paddingLeft: 0, paddingRight: 0, justifyContent: 'center' },
     chatText: {
         ...type.button,
-        color: colors.onInk,
+        color: liquidGlassAvailable ? colors.white : colors.onInk,
     },
 }))

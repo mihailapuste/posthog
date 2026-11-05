@@ -2,6 +2,7 @@ import { Fragment, type ReactElement, type ReactNode } from 'react'
 import { type AccessibilityRole, type StyleProp, View, type ViewStyle } from 'react-native'
 
 import { Pressable44 } from './Pressable44'
+import { ToolbarSurface } from './ToolbarSurface'
 import { createStyles, useTheme } from './theme'
 import { radii } from './tokens'
 
@@ -34,8 +35,9 @@ export function SegmentedPill({
 }: SegmentedPillProps): ReactElement {
     const { colors, shadows } = useTheme()
     const styles = useStyles()
+    const Surface = raised ? ToolbarSurface : View
     return (
-        <View style={[styles.outer, { height }, raised && shadows.chip, style]}>
+        <Surface style={[styles.outer, { height }, raised && shadows.chip, style]}>
             <View style={styles.inner}>
                 {segments.map((segment, index) => (
                     <Fragment key={segment.key}>
@@ -60,7 +62,7 @@ export function SegmentedPill({
                     </Fragment>
                 ))}
             </View>
-        </View>
+        </Surface>
     )
 }
 
