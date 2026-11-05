@@ -20,11 +20,20 @@ steps:
     - echo: On Views. Open Edit pins and show Signups as a number. Expect the big value
     - tap: { id: tabs-more }
     - tap: { id: views-edit-pins }
+    - await: { visible: { id: edit-pins-modal } }
     - await: { visible: { id: edit-pins-sheet } }
     - tap: { id: edit-pin-mode-number-insight-demo-ins-signups }
-    - tap: { id: edit-pins-done }
+    - tap: { text: Done }
+    - await: { hidden: { id: edit-pins-modal } }
     - await: { visible: { id: views-pin-value-insight-demo-ins-signups } }
     - await: { idle: true }
+
+    - echo: On Views. Open the pin editor from its section and swipe it down. Expect Views again
+    - tap: { id: views-pinned-edit }
+    - await: { visible: { id: edit-pins-modal } }
+    - swipe: { from: { text: Edit pins }, direction: down }
+    - await: { hidden: { id: edit-pins-modal } }
+    - await: { visible: { id: views-pinned-edit } }
 
     - echo: On Views. Open Product KPIs. Expect the dashboard on its saved range
     - tap: { id: views-pin-dashboard-demo-dash-kpis }

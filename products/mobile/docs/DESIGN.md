@@ -184,7 +184,9 @@ The native build supports rotation; iOS builds use Xcode 27.1 for the full Duo d
 - **Tabs header** (`features/tabs/TabsHeader.tsx`): Inbox, Chats and Views share one header that the
   tabs layout draws once, like the bottom bar. The logomark and the tab's title sit at the same spot on
   every tab. The pill on the right holds More on every tab, and a filter button left of it on a tab that
-  publishes one (the Inbox); Views in Edit pins swaps the pill for Done. Pull to refresh is the only manual
+  publishes one (the Inbox). Edit pins opens a native sheet above the tab bar with a system grabber and Done button.
+  The list scrolls beneath the translucent native navigation header, with the system scroll-edge effect on iOS 26.
+  The sheet supports reordering, display changes and unpinning, and saves each change immediately. Pull to refresh is the only manual
   refresh, so the header has no refresh button. A tab may add a status line under the title (Views does); it
   and the refresh hint are absolutely positioned, so they never move the title row. Each screen publishes its
   refresh hint, status line, filter button and menu rows to its own slot in `tabHeaderStore` with `useTabHeader`, and the header reads the focused tab's slot.

@@ -114,7 +114,7 @@ const useStyles = createStyles(({ colors }) => ({
         paddingRight: 8,
         borderRadius: radii.pill,
         backgroundColor: colors.ink,
-        zIndex: 25,
+        zIndex: 40,
     },
     solo: {
         paddingRight: 18,

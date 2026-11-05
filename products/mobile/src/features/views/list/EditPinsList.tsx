@@ -1,6 +1,6 @@
 import { type ReactElement, useCallback, useEffect, useMemo, useState } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
-import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler'
+import { ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import Animated, {
     type SharedValue,
     useAnimatedReaction,
@@ -20,6 +20,7 @@ import { createStyles, useTheme } from '@/ui/theme'
 import { layout, motion, radii, type } from '@/ui/tokens'
 
 import { pinModes } from '../pinHooks'
+import { EmptyPins } from './EmptyPins'
 import { ModeSegment } from './ModeSegment'
 import { ViewIcon, viewTypeLabel } from './viewMeta'
 
@@ -39,8 +40,6 @@ function orderOf(positions: Positions): string[] {
 
 interface EditPinsListProps {
     pins: readonly PinView[]
-    contentTop: number
-    contentBottom: number
     onReorder: (shortcutIds: string[]) => void
     onMove: (pin: PinView, direction: -1 | 1) => void
     onMode: (pin: PinView, mode: PinDisplayMode) => void
@@ -48,16 +47,9 @@ interface EditPinsListProps {
 }
 
 /** "Edit pins": drag a handle to reorder, set each pin's mode, or remove it. Every change saves on this phone. */
-export function EditPinsList({
-    pins,
-    contentTop,
-    contentBottom,
-    onReorder,
-    onMove,
-    onMode,
-    onRemove,
-}: EditPinsListProps): ReactElement {
+export function EditPinsList({ pins, onReorder, onMove, onMode, onRemove }: EditPinsListProps): ReactElement {
     const styles = useStyles()
+    const scrollGesture = useMemo(() => Gesture.Native(), [])
     const ids = useMemo(() => pins.map((pin) => pin.shortcutId), [pins])
     const idsKey = ids.join('|')
     const positions = useSharedValue<Positions>(positionsOf(ids))
@@ -74,34 +66,40 @@ export function EditPinsList({
     }, [positions, ids, onReorder])
 
     return (
-        <ScrollView
-            scrollEnabled={scrollEnabled}
-            contentContainerStyle={[styles.content, { paddingTop: contentTop, paddingBottom: contentBottom }]}
-            testID="edit-pins-sheet"
-        >
-            <View style={styles.sectionHeader}>
-                <Eyebrow>Pinned</Eyebrow>
-            </View>
-            <View style={{ height: Math.max(0, pins.length * STEP - ROW_GAP) }}>
-                {pins.map((pin, index) => (
-                    <EditRow
-                        key={pin.shortcutId}
-                        pin={pin}
-                        index={index}
-                        count={pins.length}
-                        positions={positions}
-                        onDragState={setScrollEnabled}
-                        onDrop={commit}
-                        onMove={onMove}
-                        onMode={onMode}
-                        onRemove={onRemove}
-                    />
-                ))}
-            </View>
-            <Text style={styles.note}>
-                Drag a handle to reorder. The toggle sets how each pin shows: as a row, a number or a chart.
-            </Text>
-        </ScrollView>
+        <GestureDetector gesture={scrollGesture}>
+            <ScrollView
+                style={styles.list}
+                contentInsetAdjustmentBehavior="automatic"
+                scrollEnabled={scrollEnabled}
+                contentContainerStyle={styles.content}
+                testID="edit-pins-sheet"
+            >
+                <Text style={styles.status}>Changes save as you go</Text>
+                <View style={styles.sectionHeader}>
+                    <Eyebrow>Pinned</Eyebrow>
+                </View>
+                {pins.length === 0 ? <EmptyPins /> : null}
+                <View style={{ height: Math.max(0, pins.length * STEP - ROW_GAP) }}>
+                    {pins.map((pin, index) => (
+                        <EditRow
+                            key={pin.shortcutId}
+                            pin={pin}
+                            index={index}
+                            count={pins.length}
+                            positions={positions}
+                            onDragState={setScrollEnabled}
+                            onDrop={commit}
+                            onMove={onMove}
+                            onMode={onMode}
+                            onRemove={onRemove}
+                        />
+                    ))}
+                </View>
+                <Text style={styles.note}>
+                    Drag a handle to reorder. The toggle sets how each pin shows: as a row, a number or a chart.
+                </Text>
+            </ScrollView>
+        </GestureDetector>
     )
 }
 
@@ -249,8 +247,17 @@ function EditRow({
 }
 
 const useStyles = createStyles(({ colors }) => ({
+    list: {
+        flex: 1,
+    },
+    status: {
+        ...type.meta,
+        color: colors.tertiary,
+    },
     content: {
         paddingHorizontal: layout.inboxGutter,
+        paddingTop: 12,
+        paddingBottom: 24,
     },
     sectionHeader: {
         minHeight: 28,

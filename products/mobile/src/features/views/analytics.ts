@@ -205,7 +205,7 @@ export function trackEditPinsOpened(props: { from: EditPinsEntry; pinCount: numb
 }
 
 export function trackEditPinsClosed(props: {
-    reason: 'done' | 'no_pins'
+    reason: 'done' | 'dismissed' | 'no_pins'
     changes: number
     durationSeconds: number
 }): void {
