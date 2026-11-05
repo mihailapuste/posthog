@@ -1,10 +1,13 @@
+import { router as navigationRouter, Stack } from 'expo-router'
 import { act, fireEvent, renderRouter, screen, within } from 'expo-router/testing-library'
 import { type ReactElement, useState } from 'react'
 import { Button, Dimensions, Text, View } from 'react-native'
+import { Tabs as ScreensTabs } from 'react-native-screens'
 
 import { setAnalyticsClient } from '@/lib/analytics'
 import { FEATURE_FLAGS, setFeatureFlags } from '@/lib/featureFlags'
 import { OverlayPortal } from '@/ui/OverlayPortal'
+import * as glass from '@/ui/ToolbarSurface'
 
 import { restoreNavPins, setNavPinned, useNavPinStore } from './navPinStore'
 import { TabsLayout } from './TabsLayout'
@@ -33,6 +36,11 @@ jest.mock('@/features/status/usePostHogStatus', () => ({
     }),
 }))
 jest.mock('@/auth/useProjectScope', () => ({ useProjectScope: () => null }))
+jest.mock('@/ui/ToolbarSurface', () => ({
+    __esModule: true,
+    ...jest.requireActual('@/ui/ToolbarSurface'),
+    liquidGlassAvailable: false,
+}))
 
 function InboxStub(): ReactElement {
     return <View testID="inbox-screen" />
@@ -109,6 +117,7 @@ const ORIGINAL_WINDOW = Dimensions.get('window')
 
 describe('TabsLayout', () => {
     beforeEach(() => {
+        jest.replaceProperty(glass, 'liquidGlassAvailable', false)
         restoreNavPins([])
         setFeatureFlags({ [FEATURE_FLAGS.errorTracking]: true, [FEATURE_FLAGS.sessionReplay]: true })
     })
@@ -314,6 +323,55 @@ describe('TabsLayout', () => {
             ['mobile_inbox_opened', undefined],
             ['mobile_nav_pin_changed', { pin: 'errors', pinned: false, source: 'list_menu', replaced: false }],
         ])
+    })
+
+    test('keeps the selected native tab through compose and removes an unpinned tab only after leaving it', () => {
+        jest.replaceProperty(glass, 'liquidGlassAvailable', true)
+        const router = renderRouter(
+            {
+                _layout: () => <Stack screenOptions={{ headerShown: false }} />,
+                '(tabs)/_layout': TabsLayout,
+                '(tabs)/inbox': InboxStub,
+                '(tabs)/chats': ChatsStub,
+                '(tabs)/views': ViewsStub,
+                chat: () => <View testID="compose-screen" />,
+                ...LIST_TABS,
+            },
+            { initialUrl: '/inbox' }
+        )
+        const tabScreen = (id: string) =>
+            screen.UNSAFE_getAllByType(ScreensTabs.Screen).find((node) => node.props.tabBarItemTestID === id)
+        const selectTab = (id: string): void => {
+            const host = screen.UNSAFE_getByType(ScreensTabs.Host)
+            fireEvent(host, 'tabSelected', {
+                nativeEvent: {
+                    selectedScreenKey: tabScreen(id)?.props.screenKey,
+                    provenance: host.props.navStateRequest.baseProvenance + 1,
+                    actionOrigin: 'user',
+                },
+            })
+        }
+
+        selectTab('inbox-nav-chat')
+        expect(router.getPathname()).toBe('/chats')
+        expect(screen.getByTestId('tabs-title').props.children).toBe('Chats')
+        selectTab('inbox-nav-views')
+        expect(router.getPathname()).toBe('/views')
+
+        fireEvent.press(screen.getByTestId('inbox-chat'))
+        expect(router.getPathname()).toBe('/chat')
+        act(() => navigationRouter.back())
+        expect(router.getPathname()).toBe('/views')
+        expect(screen.getByTestId('tabs-title').props.children).toBe('Views')
+
+        act(() => setNavPinned('errors', true))
+        selectTab('nav-pin-errors')
+        expect(router.getPathname()).toBe('/errors')
+        act(() => setNavPinned('errors', false))
+        expect(tabScreen('nav-pin-errors')).toBeDefined()
+        selectTab('inbox-nav-views')
+        expect(router.getPathname()).toBe('/views')
+        expect(tabScreen('nav-pin-errors')).toBeUndefined()
     })
 
     test('draws a screen overlay outside the tab scene, so it covers the bar', () => {

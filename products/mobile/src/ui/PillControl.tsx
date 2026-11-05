@@ -1,6 +1,6 @@
 import type { ReactElement, ReactNode } from 'react'
-import { type StyleProp, View, type ViewStyle } from 'react-native'
-
+import type { StyleProp, ViewStyle } from 'react-native'
+import { ToolbarSurface } from './ToolbarSurface'
 import { createStyles } from './theme'
 import { radii } from './tokens'
 
@@ -12,7 +12,7 @@ interface PillControlProps {
 
 export function PillControl({ children, height = 54, style }: PillControlProps): ReactElement {
     const styles = useStyles()
-    return <View style={[styles.pill, { height }, style]}>{children}</View>
+    return <ToolbarSurface style={[styles.pill, { height }, style]}>{children}</ToolbarSurface>
 }
 
 const useStyles = createStyles(({ colors }) => ({

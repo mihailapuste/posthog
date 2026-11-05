@@ -2,7 +2,7 @@ import type { ReactElement } from 'react'
 import { Text } from 'react-native'
 
 import { ChevronLeftIcon } from './icons/ChevronLeftIcon'
-import { Pressable44 } from './Pressable44'
+import { ToolbarButton } from './ToolbarButton'
 import { createStyles, useTheme } from './theme'
 import { iconSizes, radii, type } from './tokens'
 
@@ -15,7 +15,7 @@ export function BackChip({ onPress, testID }: BackChipProps): ReactElement {
     const { shadows } = useTheme()
     const styles = useStyles()
     return (
-        <Pressable44
+        <ToolbarButton
             onPress={onPress}
             accessibilityLabel="Back"
             style={[styles.chip, shadows.chip]}
@@ -24,7 +24,7 @@ export function BackChip({ onPress, testID }: BackChipProps): ReactElement {
         >
             <ChevronLeftIcon size={iconSizes.control} />
             <Text style={styles.text}>Back</Text>
-        </Pressable44>
+        </ToolbarButton>
     )
 }
 
